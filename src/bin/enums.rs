@@ -24,14 +24,14 @@ fn main() {
         }
         _ => {}
     }
-    
+
     match msg3 {
         Message::Quit => {
             println!("Received a quit command.");
         }
         _ => {}
     }
-    
+
     match msg4 {
         Message::ChangeColor(r, g, b) => {
             println!("Received a change color command to R:{} G:{} B:{}", r, g, b);
