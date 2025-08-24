@@ -1,41 +1,56 @@
+#[derive(Debug)]
+enum IpAddrkind {
+    V4,
+    V6,
+}
+
+#[derive(Debug, Clone)]
+enum IpAddr {
+    V4(String),
+    V6(String),
+}
+
+// using the abstract data class
+struct QuitMessage;
+struct MoveMessage {
+    x: i32,
+    y: i32,
+}
+
+struct WriteMessage {
+    write_info: String,
+}
+
+struct ChangeColorMessage(i32, i32, i32);
+
 enum Message {
-    Quit,
-    Move { x: i32, y: i32 },
-    Write(String),
-    ChangeColor(i32, i32, i32),
+    Quit(QuitMessage),
+    Move(MoveMessage),
+    Write(WriteMessage),
+    ChangeColor(ChangeColorMessage),
 }
 
 fn main() {
-    let msg1 = Message::Write(String::from("Hello"));
-    let msg2 = Message::Move { x: 10, y: 20 };
-    let msg3 = Message::Quit;
-    let msg4 = Message::ChangeColor(255, 0, 100);
+    println!("Hello world");
+    let four = IpAddrkind::V4;
+    let six = IpAddrkind::V6;
+    println!("{four:#?}");
+    println!("{six:#?}");
 
-    match msg1 {
-        Message::Write(text) => {
-            println!("Received a message: {}", text);
-        }
-        _ => {}
-    }
+    let home = IpAddr::V4(String::from("127.0.0,1"));
+    println!("{home:#?}");
 
-    match msg2 {
-        Message::Move { x, y } => {
-            println!("Received a move command to x:{} and y:{}", x, y);
-        }
-        _ => {}
-    }
+    route(&IpAddrkind::V4);
 
-    match msg3 {
-        Message::Quit => {
-            println!("Received a quit command.");
-        }
-        _ => {}
-    }
+    let message_test = Message::Write(WriteMessage {
+        write_info: String::from("test"),
+    });
 
-    match msg4 {
-        Message::ChangeColor(r, g, b) => {
-            println!("Received a change color command to R:{} G:{} B:{}", r, g, b);
-        }
-        _ => {}
-    }
+    let some_number = Some("5");
+    let absent_number: Option<i32> = None;
+    
+}
+
+fn route(ip: &IpAddrkind) {
+    println!("{ip:#?} is running!");
 }
