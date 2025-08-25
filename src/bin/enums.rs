@@ -10,19 +10,24 @@ enum IpAddr {
     V6(String),
 }
 
+#[derive(Debug)]
 // using the abstract data class
 struct QuitMessage;
+#[derive(Debug)]
 struct MoveMessage {
     x: i32,
     y: i32,
 }
 
+#[derive(Debug)]
 struct WriteMessage {
     write_info: String,
 }
 
+#[derive(Debug)]
 struct ChangeColorMessage(i32, i32, i32);
 
+#[derive(Debug)]
 enum Message {
     Quit(QuitMessage),
     Move(MoveMessage),
@@ -48,7 +53,9 @@ fn main() {
 
     let some_number = Some("5");
     let absent_number: Option<i32> = None;
-    
+    println!("{absent_number:#?}");
+    println!("{message_test:#?}");
+    println!("{some_number:#?}");
 }
 
 fn route(ip: &IpAddrkind) {

@@ -44,10 +44,6 @@ fn handle_event(event: Event) {
         Event::Quit => {
             println!("游戏退出事件被触发。");
         }
-
-        _ => {
-            println!("Something Error Occur");
-        }
     }
 }
 
@@ -68,12 +64,14 @@ fn main() {
     let event3 = Event::PlayerAction(456, ActionType::UseItem);
     let event4 = Event::NetworkData("PING".to_string(), vec![1, 2, 3]);
     let event5 = Event::NetworkData("HEARTBEAT".to_string(), vec![4, 5]);
+    let event6 = Event::Quit;
 
     handle_event(event1);
     handle_event(event2);
     handle_event(event3);
     handle_event(event4);
     handle_event(event5);
+    handle_event(event6);
 
     let five: i32 = 6;
     let mut wrapped_five = Some(five);
