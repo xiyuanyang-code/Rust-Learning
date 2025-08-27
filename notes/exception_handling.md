@@ -80,6 +80,12 @@ fn main() {
 
 对于可恢复的错误，Rust 同样引入了一套相当优雅的异常处理机制。
 
+{% note primary %}
+
+任何与外部世界（文件系统、网络、用户输入）交互的操作，都可能失败。因此，必须将失败的可能性显式地编码到类型系统中。
+
+{% endnote %}
+
 ```rust
 // definition of Result enums
 pub enum Result<T, E> {
@@ -218,4 +224,70 @@ fn expect_test(){
     let file = File::open("./rEADME.md").expect("Error, this is a test panic message");
 }
 ```
+
+### 错误传播
+
+当函数的实现中调用了可能会失败的操作时，除了在这个函数中处理错误外，还可以选择让调用者知道这个错误并决定该如何处理。这被称为传播（propagating）错误，这样能更好的控制代码调用，因为比起你代码所拥有的上下文，调用者可能拥有更多信息或逻辑来决定应该如何处理错误。
+
+```rust
+fn read_username_from_file() -> Result<String, io::Error> {
+    // this function will read the name (content) from the given file, then return a result type
+    let username_file_result = File::open("README.md");
+
+    let mut username_file = match username_file_result {
+        Ok(file) => file,
+        Err(e) => return Err(e),
+    };
+
+    let mut username = String::new();
+
+    match username_file.read_to_string(&mut username) {
+        Ok(_) => Ok(username),
+        Err(e) => Err(e),
+    }
+    // fn read_to_string(&mut self, buf: &mut String) -> io::Result<usize> {
+    //     (&*self).read_to_string(buf)
+    // }
+    // read string from files
+}
+```
+
+相比于直接 panic 或者抛出错误，有时将错误向上传递能让程序的调用者掌握更大的主动权，即有程序的调用者本身决定如何处理这个异常。（有点类似于 try catch 块的不断向上浮动直到被捕获）。
+
+### `?`
+
+对于上文的错误传播方式，Rust 专门提供了 `?` 运算符来实现这一点。
+
+Result 值之后的 ? 被定义为:
+- 如果 Result 的值是 Ok，这个表达式将会返回 Ok 中的值而程序将继续执行。
+- 如果值是 Err，Err 将作为**整个函数的返回值**，就好像使用了 return 关键字一样，这样错误值就被传播给了调用者。
+
+> ? 运算符可以极大程度的减少错误处理代码的复杂程度，提升代码的可读性（因为这一个部分的操作逻辑很简单，在传统编程语言中需要程序员手动做每一处异常处理，导致代码存在重复性。）
+
+```rust
+fn read_username_from_file_new_new() -> Result<String, io::Error> {
+    let mut username = String::new();
+    File::open("./README.md")?.read_to_string(&mut username)?;
+    Ok(username)
+}
+```
+
+Make it more simple! within a line:
+
+```rust
+fn read_username_from_file_new_new_new() -> Result<String, io::Error> {
+    fs::read_to_string("./README.md")
+}
+```
+
+因为 ？语法糖对于错误的处理方式是直接作为**当前函数的返回值返回**，因此必须要保证函数的签名返回值和对应？处理的类型是匹配的。否则将无法使用该语法糖。
+
+## When to panic?
+
+- panic 可以体现你作为开发者的权力，当你认为这个异常时代码本身的错误或设计不当引起的时候，可以选择直接抛出错误，即 Fail Fast，来防止这个错误在后续造成更大的危害。
+    - 适用与一些原型代码 & 测试中（更快的发现异常）
+    - 常用于一些非预期的有害行为中。
+
+- Result 相当于一种更优雅的方式，将选择权交给了函数的调用者，即**将错误信息包裹在返回值中**，这样调用者可以选择如何处理这些异常。
+    - 用于处理偶然性行为，来提升程序的鲁棒性
 
