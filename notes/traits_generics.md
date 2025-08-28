@@ -248,3 +248,73 @@ impl <T> Point<T> {
     }
 }
 ```
+
+> Rust 在运行泛型代码的时候会**执行代码的单态化**来保证运行效率。具体来说，编译器寻找所有泛型代码被调⽤的位置并使⽤泛型代码针对具体类型⽣成代码。因此泛型不会在程序运行时引入性能损失。
+
+## Trait
+
+Trait 有点类似于抽象基类的功能，定义共享行为的语言特性(契约)，它规定了某种类型必须具备哪些方法。
+
+```rust
+pub trait Summary{
+    fn summarize(&self) -> String;
+    // self 代表实现该类型的实例的 self
+}
+```
+
+在定义了这个 trait 之后，我们就可以为特定的类型（结构体）实现对应的 trait，之后就可以像成员函数一样访问：
+
+```rust
+pub trait Summary {
+    fn summarize(&self) -> String;
+}
+
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+
+pub struct SocialPost {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub repost: bool,
+}
+
+impl Summary for SocialPost {
+    fn summarize(&self) -> String {
+        format!("{}: {}", self.username, self.content)
+    }
+}
+
+fn main() {
+    println!("Hello world!");
+    let news_1 = NewsArticle {
+        headline: String::from("It is a headline"),
+        location: String::from("China"),
+        author: String::from("Xiyuan Yang"),
+        content: String::from("It is a content"),
+    };
+    println!("{}", news_1.summarize());
+}
+```
+
+如果对于某个类型的实现为空，这会调用 Trait 定义中的默认方法。
+
+```rust
+pub struct EmptyPost {
+    pub username: String,
+}
+
+// empty trait
+// using the default method
+impl Summary for EmptyPost {}
+```

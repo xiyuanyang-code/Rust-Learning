@@ -42,34 +42,34 @@ impl<T> Point<T> {
 }
 
 fn main() {
-    // println!("Hello world!");
-    // let test = vec![1, 23, 5, 6];
-    // let result = find_max_value(&test).unwrap();
-    // println!("{}", result);
+    println!("Hello world!");
+    let test = vec![1, 23, 5, 6];
+    let result = find_max_value(&test).unwrap();
+    println!("{}", result);
 
-    // let empty_test: Vec<i32> = Vec::new();
-    // let result = find_max_value(&empty_test);
-    // println!("{result:?}");
+    let empty_test: Vec<i32> = Vec::new();
+    let result = find_max_value(&empty_test);
+    println!("{result:?}");
 
-    // // using generics
-    // let numbers_vec = vec![1, 5, 2, 8, 3];
-    // let numbers_slice = [10, 5, 20, 15];
-    // let empty_vec: Vec<i32> = vec![];
+    // using generics
+    let numbers_vec = vec![1, 5, 2, 8, 3];
+    let numbers_slice = [10, 5, 20, 15];
+    let empty_vec: Vec<i32> = vec![];
 
-    // // 使用 Vec
-    // if let Some(max) = find_max_value_gen(&numbers_vec) {
-    //     println!("The max value in vec is: {}", max); // Output: The max value in vec is: 8
-    // }
+    // 使用 Vec
+    if let Some(max) = find_max_value_gen(&numbers_vec) {
+        println!("The max value in vec is: {}", max); // Output: The max value in vec is: 8
+    }
 
-    // // 使用 slice
-    // if let Some(max) = find_max_value_gen(&numbers_slice) {
-    //     println!("The max value in slice is: {}", max); // Output: The max value in slice is: 20
-    // }
+    // 使用 slice
+    if let Some(max) = find_max_value_gen(&numbers_slice) {
+        println!("The max value in slice is: {}", max); // Output: The max value in slice is: 20
+    }
 
-    // // 处理空输入
-    // if let None = find_max_value_gen(&empty_vec) {
-    //     println!("The input collection is empty."); // Output: The input collection is empty.
-    // }
+    // 处理空输入
+    if let None = find_max_value_gen(&empty_vec) {
+        println!("The input collection is empty."); // Output: The input collection is empty.
+    }
 
     let struct_test_1 = Point { x: 100, y: 100 };
 
