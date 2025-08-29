@@ -6,6 +6,17 @@ struct ImportantExcerpt<'a> {
     part: &'a str,
 }
 
+impl<'a> ImportantExcerpt<'a> {
+    fn level(&self) -> i32 {
+        3
+    }
+
+    fn announce_and_return_part(&self, announcement: &str) -> &str {
+        println!("Attention please: {announcement}");
+        self.part
+    }
+}
+
 fn main() {
     println!("Hello world!");
     let long_string = String::from("hello world");
@@ -23,5 +34,11 @@ fn main() {
     let i = ImportantExcerpt {
         part: first_sentence,
     };
-    
+
+    println!(
+        "{}",
+        i.announce_and_return_part("Hello, this is an announcement")
+    );
+
+    println!("{}", i.level());
 }

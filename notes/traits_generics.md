@@ -539,3 +539,74 @@ fn main() {
 
 在创建包含引用的结构体时，也需要关注生命周期的问题（因为所有权不在函数生命周期的内部）
 
+```rust
+struct ImportantExcerpt<'a> {
+    part: &'a str,
+}
+```
+
+对应的，也可以对对应方法的实现添加相关的生命周期注解：
+
+```rust
+impl<'a> ImportantExcerpt<'a> {
+    fn level(&self) -> i32 {
+        3
+    }
+
+    fn announce_and_return_part(&self, announcement: &str) -> &str {
+        println!("Attention please: {announcement}");
+        self.part
+    }
+}
+```
+
+### 静态生命周期
+
+使用 `static` 声明变量可以让对应的变量存在于**整个生命周期中**。
+
+{% note primary %}
+
+注意！Rust 中没有**全局变量**，为了保证安全性。
+
+{% endnote %}
+
+```rust
+let s: &'static str = "I have a static lifetime.";
+```
+
+## CallBack
+
+最后，我们再来看之前的**找可迭代对象中的最大值**的函数，在学习了上述的有关 Trait 和 生命周期的相关知识后，我们也可以实现最终最高抽象程度的泛型：
+
+```rust
+fn find_max_value_gen<'a, I, T>(numbers: I) -> Option<&'a T>
+where
+    I: IntoIterator<Item = &'a T>,
+    T: Ord + 'a,
+{
+    let mut numbers_iter = numbers.into_iter();
+
+    if let Some(mut max_num) = numbers_iter.next() {
+        for num in numbers_iter {
+            if num > max_num {
+                max_num = num;
+            }
+        }
+        Some(max_num)
+    } else {
+        None
+    }
+}
+```
+
+- **`< 'a, I, T >`**: 这是一个泛型参数列表。
+    - **`'a`**: 这是一个**生命周期参数**。它确保了函数的返回值（`&'a T`）的生命周期，与输入参数 `numbers` 中元素的引用生命周期一样长。这意味着返回的引用不会在原始数据被销毁后仍然存在，避免了悬空引用。
+    - **`I`**: 这是一个**泛型类型参数**，代表了输入参数的类型。
+    - **`T`**: 这是一个**泛型类型参数**，代表了集合中元素的类型。
+- **`(numbers: I)`**: 这是函数的输入参数。`numbers` 是一个类型为 `I` 的变量。
+- **`-> Option<&'a T>`**: 这是函数的返回值。它返回一个 `Option` 枚举，这是一种常见的 Rust 模式，用于处理可能失败的操作。
+    - **`Some(&'a T)`**: 如果找到了最大值，就返回一个包含最大值引用的 `Some` 变体。
+    - **`None`**: 如果输入的集合为空，则返回 `None`。
+- **`where` 子句**: 这部分对泛型类型 `I` 和 `T` 进行了约束，确保它们具有函数所需的功能。
+    - **`I: IntoIterator<Item = &'a T>`**: 要求 `I` 必须是一个可以转换为 **迭代器** (`IntoIterator`) 的类型。这个迭代器产生的每个元素 (`Item`) 都必须是类型为 `T` 的引用，且生命周期为 `'a`。
+    - **`T: Ord + 'a`**: 要求类型 `T` 必须实现了 `Ord` trait。`Ord` trait 提供了比较大小的功能，如 `>`、`<` 等。`+ 'a` 约束表示 `T` 类型本身不能包含比 `'a` 短的生命周期，这通常是编译器为了安全自动推导出来的。

@@ -86,4 +86,5 @@ fn main() {
 
     // using trait as a parameter
     notify(&news_1);
+    let s: &'static str = "I have a static lifetime.";
 }
