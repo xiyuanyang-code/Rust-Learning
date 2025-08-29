@@ -318,3 +318,224 @@ pub struct EmptyPost {
 // using the default method
 impl Summary for EmptyPost {}
 ```
+
+默认实现允许调用实现中的其他方法，哪怕这些方法没有默认实现。
+
+> 简单来说，如果 trait 中的一个方法已经实现了默认方法，那么在具体的类型中可以选择自定义来 override 这个方法，也可以选择不实现，使用默认方法。
+> 但是如果 trait 中的方法并没有提供默认实现，那么根据必须实现，否则编译器会报错。
+
+```rust
+pub trait Summary {
+    fn summarize(&self) -> String {
+        format!("READ more from {}...", self.summarize_author())
+    }
+
+    fn summarize_author(&self) -> String;
+}
+
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl Summary for NewsArticle {
+    // 这里我们只实现了 summarize_author
+    // summarize 会使用 trait 的默认实现
+    fn summarize_author(&self) -> String {
+        format!("Author: {}", self.author)
+    }
+}
+
+pub struct SocialPost {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub repost: bool,
+}
+
+impl Summary for SocialPost {
+    // 这里我们只实现了 summarize_author
+    // summarize 会使用 trait 的默认实现
+    fn summarize_author(&self) -> String {
+        format!("Author: {}", self.username)
+    }
+}
+
+pub struct EmptyPost {
+    pub username: String,
+}
+
+// 这里我们只实现了 summarize_author
+// summarize 会使用 trait 的默认实现
+impl Summary for EmptyPost {
+    fn summarize_author(&self) -> String {
+        format!("Author: {}", self.username)
+    }
+}
+
+fn main() {
+    println!("Hello world!");
+
+    let news_1 = NewsArticle {
+        headline: String::from("It is a headline"),
+        location: String::from("China"),
+        author: String::from("Xiyuan Yang"),
+        content: String::from("It is a content"),
+    };
+    println!("{}", news_1.summarize()); // 输出: READ more from Author: Xiyuan Yang...
+
+    let empty_news = EmptyPost {
+        username: String::from("It is an empty post"),
+    };
+    println!("{}", empty_news.summarize()); // 输出: READ more from Author: It is an empty post...
+}
+```
+
+### Trait 作为参数
+
+Trait 也可以作为函数参数被传入，对应的类型注解是 `&impl`.
+
+```rust
+pub fn notify(item: &impl Summary){
+    println!("Breaking News! {}", item.summarize());
+}
+```
+
+也可以在返回值中使⽤ impl Trait 语法，来返回实现了某个 trait 的类型。
+
+### Trait 与 泛型
+
+Trait 和泛型的关系就在于 **Trait** 作为参数被传递的时候本质就是一种**泛型写法**的语法糖。例如，下面的两个函数签名是等价的。
+
+```rust
+pub fn notify_new(item_1: &impl Summary, item_2: &impl Summary){}
+pub fn notify_new_2<T: Summary>(item_1: &T, item_2: &T){}
+```
+
+这就是 Trait 和泛型的联系！通过将 Trait 作为函数参数传递，实则也约束了被传入的实例的借用必须要实现对应的 Trait。
+
+```rust
+pub fn notify_double(item: &(impl Summary + Display)){}
+pub fn notify_double_2<T: Summary + Display>(item: &T){}
+```
+
+{% note primary %}
+
+当函数签名比较简单的时候，使用语法糖就可以很清晰的显示具体约束的 Trait 有哪些。但是如果不同的参数有对应不同的 Trait 的约束，还是得回到泛型的定义中去。
+
+{% endnote %}
+
+我们可以使用 where 从句来简化这个泛型，使其更加的可读：
+
+```rust
+fn some_function<T, U>(t: &T, u: &U) -> i32
+where
+    T: Display + Clone,
+    U: Clone + Debug,
+{
+    1
+}
+```
+
+## 生命周期
+
+Rust 中的每一个引用都是存在生命周期的，并且 Rust 的编译器聪明的把每一个引用的生命周期都压缩到了理论最短。只要保证在任意时刻内**仍然在生命周期中的引用**保持所有权借用的规则，编译器就会认为代码是安全的。
+
+与此同时，借用还需要保证：**借用的生命周期**不可以超过**原来数据的生命周期**，否则就会产生悬垂引用的严重错误。
+
+### 泛型生命周期
+
+```rust
+//! bad code
+fn find_longest(a: &str, b: &str) -> &str {
+    if a.len() > b.len() { a } else { b }
+}
+```
+
+上述代码无法通过编译：
+
+```text
+error[E0106]: missing lifetime specifier
+ --> src/bin/lifetime.rs:1:38
+  |
+1 | fn find_longest(a: &str, b: &str) -> &str {
+  |                    ----     ----     ^ expected named lifetime parameter
+  |
+  = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `a` or `b`
+help: consider introducing a named lifetime parameter
+  |
+1 | fn find_longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+  |                ++++     ++          ++          ++
+
+For more information about this error, try `rustc --explain E0106`.
+error: could not compile `rust-learning` (bin "lifetime") due to 1 previous error
+```
+
+为什么出现错误？因为 Rust 无法确定**返回值的生命周期**，实际上，谁都无法确定（因为这个由传入的函数参数所决定）。Rust 必须要保证其 Borrow Checker 明确每一个借用的生命周期，这是保证安全性的基础。
+
+因此，为了让 Borrow Checker 不再困惑，我们需要**显示添加生命周期的注解**。
+
+```rust
+&i32 // 引⽤
+&'a i32 // 带有显式⽣命周期的引⽤
+&'a mut i32 // 带有显式⽣命周期的可变引⽤
+```
+
+因此，我们可以添加一些类型注解，这样就可以通过编译了：
+
+```rust
+fn find_longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() > b.len() { a } else { b }
+}
+```
+
+* **`<'a>`**：这是一个**生命周期参数声明**，它告诉编译器，我们将在函数签名中使用一个名为 `'a` 的生命周期。
+* **`a: &'a str`** 和 **`b: &'a str`**：这表示参数 `a` 和 `b` 的生命周期至少要像 `'a` 一样长。
+* **`-> &'a str`**：这表示返回值的生命周期也和 `'a` 一样长。
+
+通过这种方式，你创建了一个**生命周期约束**：函数返回的引用的生命周期，和它所有输入引用的生命周期中**较短**的那一个保持一致。例如，如果 `a` 和 `b` 的生命周期分别是 $L_a$ 和 $L_b$，那么 `'a` 的具体生命周期将是 $\min(L_a, L_b)$。
+
+不过这并不代表函数在使用时就不会引发编译错误！生命周期的注解只是额外给编译器提供更多的信息，让编译器在一些存在安全隐患的情况下及时发出警报。
+
+```rust
+fn main() {
+    // PASSED
+    println!("Hello world!");
+    let long_string = String::from("hello world");
+    let result ;
+    {
+        let short_string = String::from("test");
+        result = find_longest(&long_string, &short_string);
+        println!("The result is {}", result);
+    }
+    // after the scope, result is never used
+    // println!("The result is {}", result);
+}
+```
+
+```rust
+fn main() {
+    // FAILED
+    println!("Hello world!");
+    let long_string = String::from("hello world");
+    let result ;
+    {
+        let short_string = String::from("test");
+        result = find_longest(&long_string, &short_string);
+        println!("The result is {}", result);
+    }
+    // after the scope, result is never used
+    println!("The result is {}", result);
+}
+```
+
+这实际上是一个很隐蔽的错误，如果这个函数体更加复杂，设计的作用域嵌套更加多的时候，因此使用编译器来检查并杜绝这种安全隐患是及其有必要的。
+
+> 如果函数返回的是一个引用，那么其生命周期应该至少和一个参数的生命周期绑定，如果不是的话，那么就说明这个返回值是内部生成的（所有权在内部），那在这个时候函数返回值，所有权在函数内部被清理，产生了悬垂引用。
+
+### 结构体定义中的生命周期
+
+在创建包含引用的结构体时，也需要关注生命周期的问题（因为所有权不在函数生命周期的内部）
+
