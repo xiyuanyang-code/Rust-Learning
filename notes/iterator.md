@@ -111,3 +111,190 @@ fn main() {
 
 Rust 的闭包的强大之处不仅仅在于匿名函数的设计，更在于**外部作用域中变量的捕获**。例如 `only_borrows` 的闭包使用了外部作用域中的 Vec 数组。在这里，实际上**闭包捕获了其不可变的引用**，这也是闭包的默认行为。
 
+
+同样，可以使用 `mut` 关键词声明可变的闭包，会捕获一个对外部变量的**可变引用**，进而允许修改对应外部变量的值。
+
+```rust
+fn main() {
+    {
+        let list = vec![1, 2, 3];
+        println!("Before defining closure: {list:?}");
+        let only_borrows = || println!("From closure: {list:?}");
+        println!("Before calling closure: {list:?}");
+        only_borrows();
+        println!("After calling closure: {list:?}");
+    }
+
+    {
+        let mut mut_list = vec![1, 2, 3];
+        println!("Before defining closure: {mut_list:?}");
+        let mut mut_borrows = || {
+            mut_list.push(23);
+            println!("After modification in the closure: {mut_list:?}");
+        };
+        // it will create a mutable reference
+        // println!("Before calling closure: {mut_list:?}");
+        // not allowed here
+        mut_borrows();
+        println!("After calling closure: {mut_list:?}");
+    }
+}
+```
+
+以上是闭包**捕获外部变量的引用的例子**，无论是可变的引用还是不可变的引用。但是有时候我们希望直接获取外部变量的所有权，例如将闭包传递给一个新的线程。（引用会带来复杂的生命周期问题，这在多线程管理的问题上更加的复杂）
+
+```rust
+let list = vec![1, 3, 4];
+println!("Before defining: {list:?}");
+thread::spawn(move || println!("From thread: {list:?}"))
+    .join()
+    .unwrap()
+```
+
+- `thread::spawn(...)`：这是 Rust 标准库中用于创建一个**新线程**的函数。它接收一个**闭包**作为参数，并在这个新线程中执行该闭包。
+- `move`：这个关键字至关重要。它强制闭包获取它所使用的**所有外部变量的所有权**。在这个例子中，闭包内部没有使用任何外部变量
+
+### Fn `Traits`
+
+上文介绍了三种闭包的基本使用方式：
+
+- 不可变借用（默认）
+- 可变借用（在闭包创建时创建一个可变借用）
+- 移动（移动所有权）
+
+在原理层面，闭包之所以能够捕获其环境中的变量，是因为它们实现了特殊的 **`Fn` traits**。
+
+* `FnOnce`（移动所有权）：只能调用一次。
+* `FnMut`（可变借用）：可以多次调用，可以修改变量。
+* `Fn`（不可变借用）：可以多次调用，只可读取变量。
+
+
+这些 traits 定义了闭包可以以何种方式被调用，并决定了它们如何与捕获的变量进行交互（借用还是移动）。Rust 中有三种主要的 `Fn` traits：`Fn`、`FnMut` 和 `FnOnce`。它们形成一个层次结构，其中 `Fn` 是最通用的，`FnOnce` 是最不通用的。
+
+  * `FnOnce` `trait` 实现了 `FnMut`。
+  * `FnMut` `trait` 实现了 `Fn`。
+
+这意味着任何可以作为 `Fn` 使用的闭包，也可以作为 `FnMut` 或 `FnOnce` 使用。
+
+#### `FnOnce`
+
+* **捕获方式**：`FnOnce` 闭包会**获取被捕获变量的所有权**。
+* **调用次数**：它只能被**调用一次**。一旦调用，它就会消耗掉自身和它捕获的变量。
+
+```rust
+let s = String::from("Hello");
+
+let consume_s = move || {
+    println!("{}", s);
+    // 在这里，s 的所有权被移动到闭包中
+};
+
+// 只能调用一次
+consume_s();
+
+// 下面这行会报错，因为 consume_s 已经被调用并消耗了
+// consume_s();
+```
+
+#### `FnMut`
+
+* **捕获方式**：`FnMut` 闭包以**可变借用**的方式捕获变量。
+* **调用次数**：可以被**多次调用**，并且每次调用都可以修改其捕获的变量。
+
+```rust
+let mut counter = 0;
+
+let mut increment_counter = || {
+    counter += 1;
+};
+
+// 可以多次调用
+increment_counter();
+increment_counter();
+println!("Counter: {}", counter); // 输出: Counter: 2
+```
+
+#### `Fn`
+
+* **捕获方式**：`Fn` 闭包以**不可变借用**的方式捕获变量。
+* **调用次数**：可以被**多次调用**，但**不能修改**其捕获的变量。
+
+```rust
+let num = 5;
+
+let check_num = || {
+    println!("Number is: {}", num);
+};
+
+// 可以多次调用
+check_num();
+check_num();
+```
+
+例如下面的例子，对一个列表进行原地的排序操作：
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+fn main() {
+    let mut list = [
+        Rectangle {
+            width: 10,
+            height: 1,
+        },
+        Rectangle {
+            width: 3,
+            height: 5,
+        },
+        Rectangle {
+            width: 7,
+            height: 12,
+        },
+    ];
+    let mut num_sort_operations = 0;
+    list.sort_by_key(|r| {
+        num_sort_operations += 1;
+        r.width
+    });
+
+    println!("{}", num_sort_operations);
+    // num: 6
+    
+    println!("{list:#?}");
+}
+```
+
+`sort_by_key()` 的函数需要接受一个闭包，这个闭包的函数返回值作为列表排序的依据。这个闭包允许捕获变量的修改并且需要多次调用，因此实现的是一个 `FnMut` Trait.
+
+
+## Iterator
+
+迭代器在惰性求值等领域中具有极高的性能优势。
+
+```rust
+// get an iterator
+fn main() {
+    println!("Hello world!");
+    // generate an iterator
+    let v1 = vec![1,2,3,4];
+    let v1_iter = v1.iter();
+    for val in v1_iter{
+        println!("Get: {}", val);
+    }
+}
+```
+
+和 Python 一样，迭代器的关键在于 `next()` 函数。具体到 Rust 而言，需要实现一个标准库定义的 Iterator 的 Trait。
+
+除了最基本的调用 next 的方法，Rust 还支持一系列**消费适配器**的实现，这些适配器会得到迭代器的所有权并且消耗这个迭代器。
+
+```rust
+// it is functional programming!
+let v1: Vec<i32> = vec![1, 2, 3];
+let v2: Vec<_> = v1.iter().map(|x| x + 1).collect();
+println!("{v2:?}");
+```
+
