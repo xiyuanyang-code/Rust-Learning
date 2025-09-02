@@ -357,3 +357,54 @@ fn main() {
 
 理论上，我们可以创建两个 List 互相指向对方，这样这两个引用计数的值就永远不会归零，导致堆内存的内存泄漏。
 
+```rust
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+#[derive(Debug)]
+enum List {
+    Cons(i32, RefCell<Rc<List>>),
+    Nil,
+}
+impl List {
+    fn tail(&self) -> Option<&RefCell<Rc<List>>> {
+        match self {
+            Cons(_, item) => Some(item),
+            Nil => None,
+        }
+    }
+}
+
+fn main() {
+    let a = Rc::new(Cons(5, RefCell::new(Rc::new(Nil))));
+    println!("a initial rc count = {}", Rc::strong_count(&a));
+    println!("a next item = {:?}", a.tail());
+    let b = Rc::new(Cons(10, RefCell::new(Rc::clone(&a))));
+    println!("a rc count after b creation = {}", Rc::strong_count(&a));
+    println!("b initial rc count = {}", Rc::strong_count(&b));
+    println!("b next item = {:?}", b.tail());
+    if let Some(link) = a.tail() {
+        *link.borrow_mut() = Rc::clone(&b);
+    }
+    println!("b rc count after changing a = {}", Rc::strong_count(&b));
+    println!("a rc count after changing a = {}", Rc::strong_count(&a));
+    // Uncomment the next line to see that we have a cycle;
+    // it will overflow the stack.
+    // println!("a next item = {:?}", a.tail());
+}
+```
+
+
+在 Rust 中，`Weak` 是一种智能指针，它和 `Rc`（引用计数）一起工作，但又和它有根本的区别。`Rc` 代表的是**强引用**（strong reference），它拥有数据的所有权，并且会增加引用计数。只要有一个 `Rc` 指针存在，它指向的数据就不会被释放。相比之下，`Weak` 代表的是**弱引用**（weak reference）。`Weak` 指针不拥有数据的所有权，也不会增加 `Rc` 的引用计数。这意味着 `Weak` 指针的存在并不会阻止数据被释放。
+
+
+`Weak` 最大的用处是**解决 `Rc` 导致的循环引用**问题。
+
+当两个或多个 `Rc` 指针相互引用，形成一个闭环时，它们的引用计数永远不会降为零。这会导致内存泄漏，因为这些数据永远不会被清理。通过使用 `Weak`，你可以打破这个循环。在循环中的某个地方，将一个 `Rc` 引用替换为 `Weak` 引用。因为 `Weak` 不增加引用计数，当所有 `Rc` 引用都超出作用域后，数据就会被正确释放，即使还有 `Weak` 指针存在。
+
+`Weak` 本身并不能直接访问数据。它提供了两种主要方法：
+
+1.  **`downgrade`**: 这个方法从一个 `Rc` 智能指针创建一个 `Weak` 智能指针。
+2.  **`upgrade`**: 这个方法是 `Weak` 指针的“救生索”。它尝试将 `Weak` 升级为 `Rc`。
+    * 如果数据仍然存在（即引用计数大于 0），`upgrade` 会成功，并返回一个 `Some(Rc<T>)`，同时增加引用计数。
+    * 如果数据已经被释放（即引用计数为 0），`upgrade` 会失败，并返回 `None`。
